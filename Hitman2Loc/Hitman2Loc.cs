@@ -29,11 +29,240 @@ namespace Hitman2Loc
 
         ///////////////////////////////////////////////////////////////////////
 
+        void ReadXmlNode_Node(ref XmlReader xr, ref Node node)
+        {
+            bool done = false;
+
+            while (false == done && xr.Read())
+            {
+                switch (xr.NodeType)
+                {
+                    case XmlNodeType.Element:
+
+                        switch (xr.Name)
+                        {
+                            case "children":
+                                {
+                                    int num = ReadXmlNode_Attr(ref xr, "count");
+                                    ReadXmlNode_Children(ref xr, ref node, num);
+                                }
+                                break;
+
+                            case "strings":
+                                {
+                                    int num = ReadXmlNode_Attr(ref xr, "count");
+                                    ReadXmlNode_Strings(ref xr, ref node, num);
+                                }
+                                break;
+
+                            default:
+                                throw new Exception("Unknown XML data in <node> node");
+                        }
+
+                        break;
+
+                    case XmlNodeType.EndElement:
+                        if (xr.Name == "node")
+                        {
+                            done = true;
+                        }
+                        else
+                        {
+                            new Exception("Unknown XML node");
+                        }
+
+                        break;
+
+                    default:
+                        break;
+                }
+            }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        int ReadXmlNode_Attr(ref XmlReader xr, string name)
+        {
+            string attr_str = xr.GetAttribute(name);
+            int result = 0;
+            if (attr_str != null)
+            {
+                int.TryParse(attr_str, out result);
+            }
+
+            return result;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        void ReadXmlNode_Children(ref XmlReader xr, ref Node node, int count)
+        {
+            bool done = false;
+
+            while (false == done && xr.Read())
+            {
+                switch (xr.NodeType)
+                {
+                    case XmlNodeType.Element:
+
+                        switch (xr.Name)
+                        {
+                            case "node":
+                                {
+                                    Node child = new Node(xr.GetAttribute("name"));
+                                    node.Children.Add(child);
+
+                                    // fix for '<node name="NotEquipped"/>' data
+                                    if (false == xr.IsEmptyElement)
+                                    {
+                                        ReadXmlNode_Node(ref xr, ref child);
+                                    }
+
+                                    --count;
+
+                                }
+                                break;
+
+                            default:
+                                throw new Exception("Unknown XML data in <children> node");
+                        }
+
+                        break;
+
+                    case XmlNodeType.EndElement:
+                        switch (xr.Name)
+                        {
+                            case "children":
+                                {
+                                    if (count != 0)
+                                    {
+                                        new Exception("Missing children in XML data");
+                                    }
+
+                                    done = true;
+                                }
+                                break;
+                        }
+
+                        break;
+
+                    default:
+                        break;
+                }
+            }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        void ReadXmlNode_Strings(ref XmlReader xr, ref Node node, int count)
+        {
+            bool done = false;
+
+            while (false == done && xr.Read())
+            {
+                switch (xr.NodeType)
+                {
+                    case XmlNodeType.Element:
+
+                        switch (xr.Name)
+                        {
+                            case "string":
+                                ReadXmlNode_String(ref xr, ref node);
+                                --count;
+                                break;
+
+                            default:
+                                throw new Exception("Unknown XML data in <strings> node");
+                        }
+
+                        break;
+
+                    case XmlNodeType.EndElement:
+                        if (xr.Name == "strings")
+                        {
+                            if (count != 0)
+                            {
+                                new Exception("Missing strings in XML data");
+                            }
+
+                            done = true;
+                        }
+                        else
+                        {
+                            new Exception("Unknown XML node");
+                        }
+
+                        break;
+
+                    default:
+                        break;
+                }
+            }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        void ReadXmlNode_String(ref XmlReader xr, ref Node node)
+        {
+            bool done = false;
+
+            while (false == done && xr.Read())
+            {
+                switch (xr.NodeType)
+                {
+                    case XmlNodeType.Text:
+                        node.TailStrs.Add(xr.Value);
+                        break;
+
+                    case XmlNodeType.EndElement:
+                        if (xr.Name == "string")
+                        {
+                            done = true;
+                        }
+                        else
+                        {
+                            new Exception("Unknown XML node");
+                        }
+
+                        break;
+
+                    default:
+                        break;
+                }
+            }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
         public bool ReadXml(string file_name)
         {
-            bool valid = false;
+            bool valid = true;
 
-            // stub
+            if (false == File.Exists(file_name))
+            {
+                valid = false;
+            }
+            else
+            {
+                StreamReader src = new StreamReader(file_name);
+                XmlReader xml = XmlReader.Create(src);
+
+                if (xml.Read())
+                {
+                    if ((xml.NodeType == XmlNodeType.Element)
+                        && (xml.Name == "node"))
+                    {
+                        root = new Node();
+                        ReadXmlNode_Node(ref xml, ref root);
+                    }
+                    else
+                    {
+                        throw new Exception("Unknown XML data");
+                    }
+                }
+
+                src.Close();
+            }
 
             return valid;
         }
@@ -45,7 +274,7 @@ namespace Hitman2Loc
             Node n = null;
             int read_len = 0;
 
-            if( root == null )
+            if (root == null)
             {
                 // will only happen once on the first node
 
@@ -95,7 +324,7 @@ namespace Hitman2Loc
 #if DEBUG
                     var ftell = (int)br.BaseStream.Position;
 #endif
-                    
+
                     int len = 0;
 
                     for (int i = 0; i < sizes.Count; ++i)
@@ -122,7 +351,7 @@ namespace Hitman2Loc
                         read_len += ReadLocChild(br, len, ref n);
                     }
                 }
-                else if(count > 0)
+                else if (count > 0)
                 {
                     // read just the 1 this pass
 
@@ -139,7 +368,7 @@ namespace Hitman2Loc
             }
 
 #if DEBUG
-            if (read_len != max_len )
+            if (read_len != max_len)
             {
                 throw new Exception("failed to completely parse this node");
             }
@@ -154,7 +383,7 @@ namespace Hitman2Loc
         {
             bool valid = true;
 
-            if(false == File.Exists(file_name))
+            if (false == File.Exists(file_name))
             {
                 valid = false;
             }
@@ -179,17 +408,17 @@ namespace Hitman2Loc
         {
             xtw.WriteStartElement("node");
 
-            if( root.Name.Length > 0 )
+            if (root.Name.Length > 0)
             {
                 xtw.WriteAttributeString("name", root.Name);
             }
-            
-            if( root.Children.Count > 0 )
+
+            if (root.Children.Count > 0)
             {
                 xtw.WriteStartElement("children");
                 xtw.WriteAttributeString("count", root.Children.Count.ToString());
 
-                for(int i=0; i <root.Children.Count; ++i)
+                for (int i = 0; i < root.Children.Count; ++i)
                 {
                     WriteXmlNode(ref xtw, root.Children[i]);
                 }
@@ -197,7 +426,7 @@ namespace Hitman2Loc
                 xtw.WriteEndElement();
             }
 
-            if( root.TailStrs.Count > 0 )
+            if (root.TailStrs.Count > 0)
             {
                 xtw.WriteStartElement("strings");
                 xtw.WriteAttributeString("count", root.TailStrs.Count.ToString());
@@ -219,7 +448,7 @@ namespace Hitman2Loc
 
         public bool WriteXml(string file_name)
         {
-            if( root == null )
+            if (root == null)
             {
                 return false;
             }
@@ -228,7 +457,7 @@ namespace Hitman2Loc
 
             bool success = false;
 
-            if(xtw.BaseStream.CanWrite)
+            if (xtw.BaseStream.CanWrite)
             {
                 WriteXmlNode(ref xtw, root);
                 success = true;
