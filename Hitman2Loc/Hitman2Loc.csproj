@@ -7,8 +7,8 @@
     <ProjectGuid>{8A8E13C3-8ED9-4130-9DDC-F70A4E19152F}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>KaneLynchLoc</RootNamespace>
-    <AssemblyName>KaneLynchLoc</AssemblyName>
+    <RootNamespace>Hitman2Loc</RootNamespace>
+    <AssemblyName>Hitman2Loc</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
