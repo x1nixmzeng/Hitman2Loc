@@ -8,7 +8,7 @@ namespace Hitman2Loc
 {
     class Hitman2LocConverter
     {
-        static string version_string = "0.01";
+        static string version_string = "0.02";
 
         string file1, file2;
 
@@ -78,7 +78,7 @@ namespace Hitman2Loc
             }
             else
             {
-                var loc_opts = new Hitman2Loc.Options();
+                var loc_opts = new Options();
 
                 Hitman2Loc loc = new Hitman2Loc(loc_opts);
 

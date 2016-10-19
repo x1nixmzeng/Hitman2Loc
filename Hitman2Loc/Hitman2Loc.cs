@@ -14,9 +14,6 @@ namespace Hitman2Loc
         ///////////////////////////////////////////////////////////////////////
 
         Node root;
-
-        public struct Options { }
-
         Options runtimeOptions;
 
         ///////////////////////////////////////////////////////////////////////
@@ -453,7 +450,7 @@ namespace Hitman2Loc
                 return false;
             }
 
-            XmlTextWriter xtw = new XmlTextWriter(file_name, Encoding.UTF8);
+            XmlTextWriter xtw = new XmlTextWriter(file_name, runtimeOptions.Encoding);
 
             bool success = false;
 
@@ -469,24 +466,144 @@ namespace Hitman2Loc
 
         ///////////////////////////////////////////////////////////////////////
 
-        private int WriteLocChild(BinaryWriter bw, ref Node root)
+        private int CalcCStringLength(string str)
         {
+            int len = runtimeOptions.Encoding.GetByteCount(str);
+
+            if( len == 0 )
+            {
+                return 0;
+            }
+
+            // with null-terminator
+            return len + sizeof(byte);            
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        void CalcLocSizeOnce(Node root)
+        {
+#if DEBUG
+            if( root.Size != 0 )
+            {
+                throw new Exception("Duplicate parsing");
+            }
+#endif
+
             int len = 0;
+            int name_enc = CalcCStringLength(root.Name);
 
-            byte children = (byte)(root.Children.Count & 0xFF);
+            if (name_enc > 0)
+            {
+                len += name_enc;
+            }
 
-            // stub
+            if (root.Children.Count == 0 && root.TailStrs.Count == 0)
+            {
+                len += sizeof(byte);
+            }
+            else
+            {
+                if (root.Children.Count > 0)
+                {
+                    len += sizeof(byte);
 
-            return len;
+                    if (root.Children.Count > 1)
+                    {
+                        len += (sizeof(int) * (root.Children.Count - 1));
+                    }
+
+                    for (int i = 0; i < root.Children.Count; ++i)
+                    {
+                        CalcLocSizeOnce(root.Children[i]);
+                        len += root.Children[i].Size;
+                    }
+                }
+
+                if (root.TailStrs.Count > 0)
+                {
+                    for (int i = 0; i < root.TailStrs.Count; ++i)
+                    {
+                        len += sizeof(byte);
+                        len += CalcCStringLength(root.TailStrs[i]);
+                    }
+                }
+            }
+
+#if DEBUG
+            Console.WriteLine(string.Format("{0} == {1}", root.Name, len));
+#endif
+
+            root.Size = len;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        private void WriteLocChild(BinaryWriter bw, Node root)
+        {
+            int name_enc = CalcCStringLength(root.Name);
+
+            if (name_enc > 0)
+            {
+                bw.Write(runtimeOptions.Encoding.GetBytes(root.Name));
+                bw.Write((byte)0);
+            }
+
+            if (root.Children.Count == 0 && root.TailStrs.Count == 0)
+            {
+                bw.Write((byte)0);
+            }
+            else
+            {
+                if (root.Children.Count > 0)
+                {
+                    bw.Write((byte)(root.Children.Count & 0xFF));
+
+                    if (root.Children.Count > 1)
+                    {
+                        int node_size = root.Children[0].Size;
+
+                        for(int i = 1; i < root.Children.Count; ++i)
+                        {
+                            bw.Write(node_size);
+                            node_size += root.Children[i].Size;
+                        }
+                    }
+
+                    for (int i = 0; i < root.Children.Count; ++i)
+                    {
+                        WriteLocChild(bw, root.Children[i]);
+                    }
+                }
+
+                if (root.TailStrs.Count > 0)
+                {
+                    for (int i = 0; i < root.TailStrs.Count; ++i)
+                    {
+                        bw.Write((byte)1);
+                        bw.Write(runtimeOptions.Encoding.GetBytes(root.TailStrs[i]));
+                        bw.Write((byte)0);
+                    }
+                }
+            }
         }
 
         ///////////////////////////////////////////////////////////////////////
 
         public bool WriteLoc(string file_name)
         {
-            bool valid = false;
+            bool valid = true;
 
-            // stub
+            Stream fh = File.OpenWrite(file_name);
+            if (fh.CanWrite)
+            {
+                BinaryWriter bw = new BinaryWriter(fh);
+
+                CalcLocSizeOnce(root);
+
+                WriteLocChild(bw, root);
+            }
+            fh.Close();
 
             return valid;
         }

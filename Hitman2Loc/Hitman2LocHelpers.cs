@@ -51,9 +51,24 @@ namespace Hitman2Loc
 
     ///////////////////////////////////////////////////////////////////////
 
+    public class Options
+    {
+        public Encoding Encoding;
+
+        public Options()
+        {
+            // defaults
+
+            Encoding = Encoding.UTF8;
+        }
+    }
+
+    ///////////////////////////////////////////////////////////////////////
+
     class Node
     {
         public string Name { get; private set; }
+        public int Size;
 
         public List<Node> Children { get; private set; }
         public List<string> TailStrs { get; private set; }
@@ -61,6 +76,7 @@ namespace Hitman2Loc
         public Node(string _name)
         {
             Name = _name;
+            Size = 0;
 
             Children = new List<Node>();
             TailStrs = new List<string>();
@@ -69,6 +85,7 @@ namespace Hitman2Loc
         public Node()
         {
             Name = "";
+            Size = 0;
 
             Children = new List<Node>();
             TailStrs = new List<string>();
