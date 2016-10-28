@@ -8,7 +8,7 @@ namespace Hitman2Loc
 {
     class Hitman2LocConverter
     {
-        static string version_string = "0.02";
+        static string version_string = "0.03";
 
         string file1, file2;
 

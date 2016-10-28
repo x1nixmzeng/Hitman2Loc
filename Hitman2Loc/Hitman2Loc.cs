@@ -290,6 +290,26 @@ namespace Hitman2Loc
                 root.Children.Add(n);
             }
 
+            // strange special case, unsure how these are even used
+            if( n.Name == "formatstring" )
+            {
+                int count = (int)br.ReadByte();
+                read_len += sizeof(byte);
+
+                for (int i = 0; i < count -1; ++i)
+                {
+                    using (var s = new StringStore().Read(br))
+                    {
+#if DEBUG
+                        Console.WriteLine("Read formatting value \"{0}\"", s.Value);
+#endif
+
+                        n.TailStrs.Add(s.Value);
+                        read_len += s.ReadSize;
+                    }
+                }
+            }
+
             // if a node has children, this loop will happen once
             // if the node has tail strings this can happen several times
             while (read_len < max_len)
@@ -307,6 +327,13 @@ namespace Hitman2Loc
                     for (int i = 0; i < count - 1; ++i)
                     {
                         last = br.ReadInt32();
+
+#if DEBUG
+                        if( last > (int)br.BaseStream.Length)
+                        {
+                            throw new Exception("Invalid tail string offset");
+                        }
+#endif
                         sizes.Add(last);
 
                         read_len += sizeof(int);
@@ -498,7 +525,16 @@ namespace Hitman2Loc
                 len += name_enc;
             }
 
-            if (root.Children.Count == 0 && root.TailStrs.Count == 0)
+            if (root.Name == "formatstring")
+            {
+                len += sizeof(byte);
+
+                for (int i = 0; i < root.TailStrs.Count; ++i)
+                {
+                    len += CalcCStringLength(root.TailStrs[i]);
+                }
+            }
+            else if (root.Children.Count == 0 && root.TailStrs.Count == 0)
             {
                 len += sizeof(byte);
             }
@@ -549,7 +585,17 @@ namespace Hitman2Loc
                 bw.Write((byte)0);
             }
 
-            if (root.Children.Count == 0 && root.TailStrs.Count == 0)
+            if( root.Name == "formatstring")
+            {
+                bw.Write((byte)((root.TailStrs.Count + 1) & 0xFF));
+
+                for (int i = 0; i < root.TailStrs.Count; ++i)
+                {
+                    bw.Write(runtimeOptions.Encoding.GetBytes(root.TailStrs[i]));
+                    bw.Write((byte)0);
+                }
+            }
+            else if (root.Children.Count == 0 && root.TailStrs.Count == 0)
             {
                 bw.Write((byte)0);
             }
